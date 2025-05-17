@@ -36,4 +36,7 @@ jobs:
           echo "Link: $Link" >> message.txt
 
           PAYLOAD=$(jq -Rs '{content: .}' < message.txt)
+          # DEBUG – remove after test
+          echo "DEBUG webhook length=${#WEBHOOK}"
+
           curl -s -H "Content-Type: application/json" -d "$PAYLOAD" "$WEBHOOK"
