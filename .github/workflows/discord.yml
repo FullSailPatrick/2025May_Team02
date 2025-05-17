@@ -1,11 +1,42 @@
-name: Discord feed
+name: Discord Commit Feed   # appears in Actions list
 
 on:
-  push:
-    branches: [ "**" ]
+  push:                     # run on every push
+    branches: ["**"]
 
 jobs:
-  feed:
-    uses: FullSailPatrick/workflow-library/.github/workflows/discord.yml@main
-    secrets:
-      webhook: ${{ secrets.DISCORD_WEBHOOK }}
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      # 1 — checkout so git commands work
+      - uses: actions/checkout@v4
+
+      # 2 — collect info about this push
+      - name: Build payload
+        id: build
+        run: |
+          echo "REPO=${{ github.repository }}"                     >> $GITHUB_ENV
+          echo "BRANCH=${GITHUB_REF#refs/heads/}"                  >> $GITHUB_ENV
+          echo "AUTHOR=${{ github.event.pusher.name }}"            >> $GITHUB_ENV
+          echo "TIME=$(TZ=America/New_York date '+%A %m-%d-%Y %I:%M %p EST')" >> $GITHUB_ENV
+          echo "COMMIT=$(git log -1 --pretty=format:'%h %s')"      >> $GITHUB_ENV
+
+          cat <<EOF > msg.txt
+:white_check_mark: GitHub push detected
+Repo:   $REPO
+Branch: $BRANCH
+Author: $AUTHOR
+Time:   $TIME
+Commit: $COMMIT
+Link:
+https://github.com/$REPO/commit/${{ github.sha }}
+EOF
+
+      # 3 — post to Discord using the secret
+      - name: Post to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}   # ← secret you just added
+        run: |
+          curl -s -H "Content-Type: application/json" \
+               -d "{\"content\": \"\`\`\`\n$(cat msg.txt)\n\`\`\`\"}" \
+               "$WEBHOOK"
